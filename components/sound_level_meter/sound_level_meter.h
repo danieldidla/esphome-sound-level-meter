@@ -6,7 +6,7 @@
 #include "esphome/core/component.h"
 #include "esphome/core/automation.h"
 #include "esphome/components/sensor/sensor.h"
-#include "esphome/components/i2s/i2s.h"
+#include "esphome/components/i2s_audio/i2s_audio.h"
 
 namespace esphome {
 namespace sound_level_meter {
@@ -23,7 +23,7 @@ class SoundLevelMeter : public Component {
   void set_buffer_size(uint32_t buffer_size);
   uint32_t get_buffer_size();
   uint32_t get_sample_rate();
-  void set_i2s(i2s::I2SComponent *i2s);
+  void set_i2s_audio(i2s_audio::I2SAudioComponent *i2s_audio);
   void add_group(SensorGroup *group);
   void set_warmup_interval(uint32_t warmup_interval);
   void set_task_stack_size(uint32_t task_stack_size);
@@ -44,7 +44,7 @@ class SoundLevelMeter : public Component {
   bool is_on();
 
  protected:
-  i2s::I2SComponent *i2s_{nullptr};
+  i2s_audio::I2SAudioComponent *i2s_audio_{nullptr};
   std::vector<SensorGroup *> groups_;
   size_t buffer_size_{256};
   uint32_t warmup_interval_{500};
@@ -62,8 +62,6 @@ class SoundLevelMeter : public Component {
   std::condition_variable on_cv_;
 
   static void task(void *param);
-  // epshome's scheduler is not thred safe, so we have to use custom thread safe implementation
-  // to execute sensor updates in main loop
   void defer(std::function<void()> &&f);
   void reset();
 };
@@ -168,7 +166,7 @@ class SOS_Filter : public Filter {
   virtual void process(std::vector<float> &data) override;
 
  protected:
-  std::vector<std::array<float, 5>> coeffs_;  // {b0, b1, b2, a1, a2}
+  std::vector<std::array<float, 5>> coeffs_;
   std::vector<std::array<float, 2>> state_;
 
   virtual void reset() override;
@@ -177,9 +175,7 @@ class SOS_Filter : public Filter {
 template<typename... Ts> class TurnOnAction : public Action<Ts...> {
  public:
   explicit TurnOnAction(SoundLevelMeter *sound_level_meter) : sound_level_meter_(sound_level_meter) {}
-
   void play(Ts... x) override { this->sound_level_meter_->turn_on(); }
-
  protected:
   SoundLevelMeter *sound_level_meter_;
 };
@@ -187,9 +183,7 @@ template<typename... Ts> class TurnOnAction : public Action<Ts...> {
 template<typename... Ts> class TurnOffAction : public Action<Ts...> {
  public:
   explicit TurnOffAction(SoundLevelMeter *sound_level_meter) : sound_level_meter_(sound_level_meter) {}
-
   void play(Ts... x) override { this->sound_level_meter_->turn_off(); }
-
  protected:
   SoundLevelMeter *sound_level_meter_;
 };
@@ -197,9 +191,7 @@ template<typename... Ts> class TurnOffAction : public Action<Ts...> {
 template<typename... Ts> class ToggleAction : public Action<Ts...> {
  public:
   explicit ToggleAction(SoundLevelMeter *sound_level_meter) : sound_level_meter_(sound_level_meter) {}
-
   void play(Ts... x) override { this->sound_level_meter_->toggle(); }
-
  protected:
   SoundLevelMeter *sound_level_meter_;
 };
